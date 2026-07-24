@@ -16,7 +16,7 @@ Tasks are taken in order. Each task must have an implementation, focused regress
 | ARCH-002 | P0 | Complete A2A ACK contract | `ack` tool is registered, ACK is idempotent, processing-before-ACK is covered by tests, and delivery state transitions are documented | Done — tests added; pytest blocked by environment |
 | ARCH-003 | P0 | Cover A2A rejection paths with DPA events | Every rejected API path emits one safe, correlated DPA event | Done — tests added; pytest blocked by environment |
 | ARCH-004 | P1 | Make deployment reproducible | One key/config source, startup validation, health-aware compose dependencies, and `.env.example` | Planned |
-| ARCH-005 | P1 | Close transport security gaps | Non-loopback control plane fails closed by default; explicit insecure override is audited; A2A transport has TLS/rotation plan | Planned |
+| ARCH-005 | P1 | Close transport security gaps | Non-loopback control plane fails closed by default; explicit insecure override is audited; A2A transport has TLS/rotation plan | In progress — control-plane bind fixed |
 | ARCH-006 | P1 | Make A2A delivery semantics explicit and safe | At-least-once/claim semantics, consumer dedup, retry/dead-letter policy, and concurrency tests | Planned |
 | ARCH-007 | P1 | Separate transport acceptance from crypto validation | Gateway state distinguishes accepted, validated, quarantined and rejected envelopes | Planned |
 | ARCH-008 | P1 | Bound A2A storage and strengthen audit trail | Retention, size metrics, bounded cleanup and tamper-evident DPA chain | Planned |
@@ -68,3 +68,11 @@ Tasks are taken in order. Each task must have an implementation, focused regress
 - Added a contract assertion for `malformed_envelope` DPA records.
 - Database/audit-storage failure remains fail-closed at the HTTP boundary and intentionally does not expose storage details; durable retry for audit outages is a future hardening item.
 - Python compilation and `git diff --check` pass; FastAPI/pytest execution is blocked because the current environment lacks both packages.
+
+### 2026-07-24 — ARCH-005 progress
+
+- `validate_network_auth_configuration()` now fails startup for non-loopback binds without a network password.
+- The existing `OUROBOROS_TRUST_NONLOCAL_BIND_WITHOUT_PASSWORD=1` is now the only explicit escape hatch and is documented as trusted-ingress/VPN/private-network-only.
+- Updated architecture documentation and regression tests.
+- Remaining scope: A2A TLS/mTLS, token rotation/revocation, rate limits and transport threat-model hardening.
+- Python compilation and `git diff --check` pass; runtime test import is blocked because Starlette is not installed in the current environment.

@@ -21,6 +21,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 from ouroboros.config import load_settings
 
 NETWORK_PASSWORD_KEY = "OUROBOROS_NETWORK_PASSWORD"
+TRUST_NONLOCAL_BIND_KEY = "OUROBOROS_TRUST_NONLOCAL_BIND_WITHOUT_PASSWORD"
 AUTH_COOKIE_NAME = "ouroboros_auth"
 _PUBLIC_HTTP_PATHS = {"/api/health", "/auth/login", "/auth/logout"}
 
@@ -51,7 +52,15 @@ def is_loopback_host(host: str | None) -> bool:
 
 
 def validate_network_auth_configuration(bind_host: str) -> str | None:
-    return None
+    if is_loopback_host(bind_host) or get_configured_network_password():
+        return None
+    if os.environ.get(TRUST_NONLOCAL_BIND_KEY, "").strip() == "1":
+        return None
+    return (
+        "Refusing to bind Ouroboros to a non-loopback host without "
+        f"{NETWORK_PASSWORD_KEY}. Configure a password or explicitly set "
+        f"{TRUST_NONLOCAL_BIND_KEY}=1 behind trusted ingress/VPN/private networking."
+    )
 
 
 def get_network_auth_startup_warning(bind_host: str) -> str | None:

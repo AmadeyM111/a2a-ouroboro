@@ -873,7 +873,7 @@ Settings has Providers, Secrets, Models, Behavior, Advanced, and About. It handl
 
 ## 4. Server API Endpoints
 
-If `OUROBOROS_NETWORK_PASSWORD` is configured, non-loopback HTTP/WebSocket access requires authentication; `/api/health` stays public. With no password, non-loopback access remains open by explicit operator choice.
+Non-loopback HTTP/WebSocket access requires `OUROBOROS_NETWORK_PASSWORD`; `/api/health` stays public. A non-loopback bind without a password fails at startup unless the operator explicitly sets `OUROBOROS_TRUST_NONLOCAL_BIND_WITHOUT_PASSWORD=1` for a deployment already protected by ingress authentication, VPN, private networking, or an auth proxy.
 
 The executable route SSOT is `ouroboros/gateway/router.py`; file-browser routes come from `gateway/files.py::file_browser_routes()`, the contract index is `gateway/contracts.py::HTTP_ENDPOINTS`, and Host Service routes come from `gateway/host_service.py::create_host_service_app`.
 
@@ -1450,7 +1450,7 @@ Runtime floors:
 | ANTHROPIC_API_KEY | "" | Optional. Enables direct Anthropic runtime routing (`anthropic::...` model values) and Claude Agent SDK advisory/review internals |
 | transport-skill requested bot token | "" | Optional stored secret used by the Telegram bridge skill after owner grant |
 | transport-skill local chat id | "" | Optional stored setting used by the Telegram bridge skill |
-| OUROBOROS_NETWORK_PASSWORD | "" | Optional. Enables the non-loopback auth gate when set; empty still allows open bind, but startup logs a warning |
+| OUROBOROS_NETWORK_PASSWORD | "" | Required for non-loopback bind unless the trusted-ingress override is explicitly enabled. Enables the non-loopback auth gate |
 | OUROBOROS_SERVER_HOST | 127.0.0.1 | Server bind host. Use `0.0.0.0` for LAN/Docker access; restart required. |
 | OUROBOROS_TRUST_NONLOCAL_BIND_WITHOUT_PASSWORD | unset | Env-only Docker/Kubernetes escape hatch. When set to `1`, Settings may save ordinary changes while a wildcard/non-localhost bind has no `OUROBOROS_NETWORK_PASSWORD`; use only behind ingress auth, VPN, private networking, or an auth proxy. |
 | OUROBOROS_MODEL | google/gemini-3.5-flash | Main reasoning model (the one real default; every other worker slot below is empty→Main) |
