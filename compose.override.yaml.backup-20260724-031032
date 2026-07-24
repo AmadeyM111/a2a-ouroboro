@@ -1,0 +1,20 @@
+services:
+  agent1:
+    volumes:
+      - ./skills/a2a_gateway:/app/skills/a2a_gateway:ro
+
+  agent2:
+    volumes:
+      - ./skills/a2a_gateway:/app/skills/a2a_gateway:ro
+
+  agent3:
+    volumes:
+      - ./skills/a2a_gateway:/app/skills/a2a_gateway:ro
+
+  agent4:
+    volumes:
+      - ./skills/a2a_gateway:/app/skills/a2a_gateway:ro
+
+  agent5:
+    volumes:
+      - ./skills/a2a_gateway:/app/skills/a2a_gateway:ro

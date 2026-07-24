@@ -1,0 +1,126 @@
+# Environment variables and local configuration
+.env
+.env.*
+!.env.example
+!.env.template
+
+# Secrets and credentials
+secrets/
+**/secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.crt
+*.cer
+*.token
+*.credentials
+credentials.json
+
+# Private A2A material
+**/ed25519-private.*
+**/x25519-private.*
+**/private-keys.*
+**/private_keys.*
+**/network-password*
+**/network_password*
+
+# Python
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyright/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.venv/
+venv/
+env/
+
+# Runtime data
+data/
+**/data/state/
+**/data/tmp/
+**/data/logs/
+**/data/observability/
+**/observability/
+**/blobs/
+**/calls/
+
+# Ouroboros runtime state
+**/review_history.jsonl
+**/review_job.json
+**/health.json
+**/task_results/
+**/workspace/
+**/workspaces/
+**/sessions/
+**/memory/
+
+# Databases
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.wal
+*.shm
+
+# Logs and process files
+*.log
+logs/
+*.pid
+*.pid.lock
+*.sock
+
+# Generated archives and dumps
+*.gz
+*.zip
+*.tar
+*.tgz
+*.dump
+*.bak
+*.tmp
+*.temp
+
+# Model and large generated files
+*.gguf
+*.safetensors
+*.bin
+models/
+checkpoints/
+
+# Test and build artifacts
+build/
+dist/
+site/
+*.egg-info/
+coverage.xml
+junit.xml
+
+# IDE and OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Local Docker overrides and rendered configurations
+docker-compose.override.yml
+compose.override.yml
+docker-compose.resolved.yml
+compose.resolved.yml
+docker-compose.config.yml
+
+# Local backups
+backup/
+backups/

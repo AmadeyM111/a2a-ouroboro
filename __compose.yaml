@@ -1,0 +1,49 @@
+name: bank-a2a
+
+services:
+  agent1:
+    image: a2a-ouroboros:6.40.0
+    container_name: bank-a2a-agent1
+    restart: unless-stopped
+
+    ports:
+      - "127.0.0.1:8201:8765"
+
+    environment:
+      OUROBOROS_NETWORK_PASSWORD: ${AGENT1_PASS}
+      OUROBOROS_FILE_BROWSER_DEFAULT: /workspace
+      OUROBOROS_DATA_DIR: /data
+      OUROBOROS_MAX_WORKERS: "1"
+      OUROBOROS_MAX_ACTIVE_SUBAGENTS_PER_ROOT: "1"
+      OUROBOROS_MAX_SUBAGENT_DEPTH: "1"
+      OUROBOROS_WORKER_START_METHOD: "spawn"
+
+      BASE_URL: http://host.docker.internal:8080/v1
+      OPENAI_API_KEY: "local"
+      OUROBOROS_MODEL: openai-compatible::gpt-oss-120b
+      OUROBOROS_MODEL_HEAVY: openai-compatible::gpt-oss-120b
+      OUROBOROS_MODEL_LIGHT: openai-compatible::gpt-oss-120b
+      LOCAL_MODEL_CONTEXT_LENGTH: "65536"
+      MAX_TOKENS: "2048"
+      OUROBOROS_MODEL_MAX_CONCURRENCY: "1"
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    volumes:
+      - agent1-data:/data
+      - agent1-workspace:/workspace
+
+    networks:
+      - bank-a2a-private
+
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  agent1-data:
+  agent1-workspace:
+
+networks:
+  bank-a2a-private:
+    driver: bridge
