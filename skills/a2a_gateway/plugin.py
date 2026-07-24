@@ -205,6 +205,17 @@ def register(api: Any) -> None:
         return {"messages": messages, "count": len(messages)}
 
     @guarded
+    def acknowledge(message_id: Any) -> dict[str, Any]:
+        """Acknowledge only after the caller has durably processed a message."""
+        return {
+            "message": _public_envelope(
+                get_client().acknowledge(
+                    _required_identifier(message_id, "message_id")
+                )
+            )
+        }
+
+    @guarded
     def reply(
         message_id: Any,
         conversation_id: Any,
@@ -264,6 +275,23 @@ def register(api: Any) -> None:
             "properties": {
                 "limit": {"type": "integer", "minimum": 1, "maximum": 100}
             },
+            "additionalProperties": False,
+        },
+        timeout_sec=15,
+    )
+    api.register_tool(
+        "ack",
+        acknowledge,
+        description=(
+            "Acknowledge an A2A message after durable processing. "
+            "Inbox delivery is at-least-once until this succeeds."
+        ),
+        schema={
+            "type": "object",
+            "properties": {
+                "message_id": {"type": "string", "minLength": 1, "maxLength": 128}
+            },
+            "required": ["message_id"],
             "additionalProperties": False,
         },
         timeout_sec=15,

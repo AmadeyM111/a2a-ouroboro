@@ -13,7 +13,7 @@ Tasks are taken in order. Each task must have an implementation, focused regress
 | ID | Priority | Task | Done when | Status |
 |---|---|---|---|---|
 | ARCH-001 | P0 | Bound skill-review prompt assembly | Review prompt has a deterministic input budget, omission notes, no oversized model call, and executable review fails closed on overflow | Done — tests added; pytest blocked by environment |
-| ARCH-002 | P0 | Complete A2A ACK contract | `ack` tool is registered, ACK is idempotent, processing-before-ACK is covered by tests, and delivery state transitions are documented | Planned |
+| ARCH-002 | P0 | Complete A2A ACK contract | `ack` tool is registered, ACK is idempotent, processing-before-ACK is covered by tests, and delivery state transitions are documented | Done — tests added; pytest blocked by environment |
 | ARCH-003 | P0 | Cover A2A rejection paths with DPA events | Every rejected API path emits one safe, correlated DPA event | Planned |
 | ARCH-004 | P1 | Make deployment reproducible | One key/config source, startup validation, health-aware compose dependencies, and `.env.example` | Planned |
 | ARCH-005 | P1 | Close transport security gaps | Non-loopback control plane fails closed by default; explicit insecure override is audited; A2A transport has TLS/rotation plan | Planned |
@@ -51,3 +51,11 @@ Tasks are taken in order. Each task must have an implementation, focused regress
 - Added `test_skill_review_prompt_has_deterministic_hard_budget`.
 - Manual verification passed: prompt for the bundled small skill is `104,443` chars; module compiles; `git diff --check` passes.
 - Targeted pytest could not run because the available Python environment has no `pytest` module.
+
+### 2026-07-24 — ARCH-002 completed
+
+- Exported the existing client ACK operation as the extension tool `ack`.
+- The tool accepts only `message_id`, returns a safe public envelope, and documents at-least-once delivery until ACK succeeds.
+- Kept `list_inbox` non-acknowledging so the caller can process durably before acknowledging.
+- Added plugin registration and invalid-input regression tests.
+- Module compilation and static diff checks pass; pytest remains blocked by the missing environment dependency.
