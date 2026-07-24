@@ -83,6 +83,28 @@ def test_skill_review_prompt_includes_minimal_host_context(tmp_path):
     assert "### web/modules/widgets.js" not in prompt
 
 
+def test_skill_review_prompt_has_deterministic_hard_budget(tmp_path):
+    import ouroboros.skill_review as skill_review
+
+    compact = skill_review._build_review_prompt(
+        "demo",
+        tmp_path / "demo",
+        "{}",
+        "hash",
+        "plugin.py\nprint('ok')",
+    )
+    assert len(compact) <= skill_review._MAX_REVIEW_PROMPT_CHARS
+
+    with pytest.raises(skill_review._SkillReviewPromptTooLarge):
+        skill_review._build_review_prompt(
+            "demo",
+            tmp_path / "demo",
+            "{}",
+            "hash",
+            "x" * (skill_review._MAX_REVIEW_PROMPT_CHARS + 1),
+        )
+
+
 def test_skill_advisory_failure_is_fail_open_but_visible(tmp_path, monkeypatch):
     import ouroboros.skill_review as skill_review
     from ouroboros.tools import claude_advisory_review as advisory

@@ -52,6 +52,11 @@ _MAX_SKILL_FILE_BYTES = 64 * 1024
 _MAX_SKILL_FILES = 40
 _MAX_RAW_RESULT_CHARS = 4000
 _SKILL_CHECKLIST_SECTION = "Skill Review Checklist"
+# Skill review is an executable trust gate. Keep a deterministic safety margin
+# for code-dense tokenizers instead of relying on a provider-specific context
+# window probe. The full executable payload is never silently truncated: an
+# over-budget pack becomes PENDING before any model call.
+_MAX_REVIEW_PROMPT_CHARS = 135_000
 
 # Loadable native code is unreviewable by LLMs. All non-UTF-8 runtime-reachable
 # files are blocked; this set names common categories early in the error path.
@@ -240,6 +245,85 @@ def _load_governance_artifact(
     from ouroboros.tools.review_helpers import load_governance_doc
 
     return load_governance_doc(repo_root, relpath, on_missing="explicit")
+
+
+class _SkillReviewPromptTooLarge(RuntimeError):
+    """Raised when the assembled trust-gate prompt exceeds the hard budget."""
+
+
+def _select_markdown_sections(text: str, headings: tuple[str, ...]) -> str:
+    """Keep named top-level sections without summarizing governance prose."""
+    source = str(text or "")
+    selected: list[str] = []
+    for heading in headings:
+        marker = f"## {heading}"
+        start = source.find(marker)
+        if start < 0:
+            continue
+        end = source.find("\n## ", start + len(marker))
+        selected.append(source[start:] if end < 0 else source[start:end])
+    return "\n\n".join(selected) or "(⚠️ OMISSION: requested governance sections were not found)"
+
+
+def _compact_governance(repo_root: pathlib.Path, relpath: str) -> str:
+    """Load only security-relevant governance sections, preserving source text."""
+    full = _load_governance_artifact(repo_root, relpath)
+    sections: dict[str, tuple[str, ...]] = {
+        "docs/ARCHITECTURE.md": (
+            "10. Key Invariants",
+            "12. Host Service, Companion Processes, and Chat IDs",
+            "13. External Skills Layer",
+        ),
+        "docs/DEVELOPMENT.md": (
+            "Module Size & Complexity",
+            "Core Governance Artifacts",
+            "Process Custody Rule",
+            "MCP Client Integration",
+            "Gateway Boundary Pattern",
+        ),
+        "BIBLE.md": (
+            "Principle 0: Agency",
+            "Principle 3: Immune Integrity",
+            "Principle 5: LLM-First",
+            "Principle 6: Authenticity & Reality Discipline",
+            "Principle 7: Minimalism",
+            "Principle 12: Epistemic Stability",
+            "Constraints",
+            "Emergency Stop Invariant",
+        ),
+    }
+    wanted = sections.get(relpath)
+    return _select_markdown_sections(full, wanted) if wanted else full
+
+
+def _compact_host_context(repo_root: pathlib.Path) -> str:
+    """Build host context from relevant source sections, not whole documents."""
+    from ouroboros.tools.review_helpers import SKILL_HOST_CONTEXT_FILES
+
+    parts = [
+        "## Host skill/widget contract context\n",
+        (
+            "These files are host-side contracts and guidelines used to judge the "
+            "skill payload. They are not part of the reviewed skill package.\n"
+        ),
+    ]
+    for relpath, language in SKILL_HOST_CONTEXT_FILES:
+        text = _load_governance_artifact(repo_root, relpath)
+        if relpath == "docs/CREATING_SKILLS.md":
+            text = _select_markdown_sections(
+                text,
+                (
+                    "What is a skill?",
+                    "Manifest schema (`SKILL.md` frontmatter or `skill.json`)",
+                    "Lifecycle: install → review → enable → execute",
+                    "Permissions",
+                    "Grants for protected keys and host permissions",
+                    "Notifying the owner when work completes",
+                    "Async job error contract",
+                ),
+            )
+        parts.append(f"### {relpath}\n\n{format_prompt_code_block(text, language)}")
+    return "\n\n".join(parts)
 
 
 # Resolve repo root from this file for source and packaged builds.
@@ -821,10 +905,10 @@ def _build_review_prompt(
         checklist_section = (
             f"(⚠️ SKILL_REVIEW_ERROR: checklist section missing: {exc})"
         )
-    architecture_text = _load_governance_artifact(_REPO_ROOT, "docs/ARCHITECTURE.md")
-    development_text = _load_governance_artifact(_REPO_ROOT, "docs/DEVELOPMENT.md")
-    bible_text = _load_governance_artifact(_REPO_ROOT, "BIBLE.md")
-    skill_host_context = build_skill_host_context(_REPO_ROOT)
+    architecture_text = _compact_governance(_REPO_ROOT, "docs/ARCHITECTURE.md")
+    development_text = _compact_governance(_REPO_ROOT, "docs/DEVELOPMENT.md")
+    bible_text = _compact_governance(_REPO_ROOT, "BIBLE.md")
+    skill_host_context = _compact_host_context(_REPO_ROOT)
     items_json = json.dumps(list(_SKILL_REVIEW_ITEMS))
     advisory_section = ""
     if advisory_notes.strip():
@@ -835,7 +919,7 @@ def _build_review_prompt(
             "contract below remains authoritative.\n\n"
             f"{advisory_notes.strip()}\n"
         )
-    return f"""\
+    prompt = f"""\
 You are performing a SKILL review, not a repo-commit review.
 
 This review vets a single external skill package that lives OUTSIDE the
@@ -927,6 +1011,12 @@ Rules:
 - For every FAIL, include a concrete proposed fix (file/symbol/change)
   so the skill author knows how to correct it.
 """
+    if len(prompt) > _MAX_REVIEW_PROMPT_CHARS:
+        raise _SkillReviewPromptTooLarge(
+            f"skill review prompt is {len(prompt)} chars; "
+            f"hard limit is {_MAX_REVIEW_PROMPT_CHARS} chars"
+        )
+    return prompt
 
 
 def _emit_skill_advisory_warning(
@@ -1375,16 +1465,30 @@ def review_skill(
     )
     if preflight_outcome is not None:
         return preflight_outcome
-    prompt, advisory_evidence = _build_review_prompt_for_attempt(
-        ctx,
-        drive_root,
-        skill,
-        manifest_dump=manifest_dump,
-        content_hash=content_hash,
-        file_pack=file_pack,
-        history=history,
-        review_rebuttal=review_rebuttal,
-    )
+    try:
+        prompt, advisory_evidence = _build_review_prompt_for_attempt(
+            ctx,
+            drive_root,
+            skill,
+            manifest_dump=manifest_dump,
+            content_hash=content_hash,
+            file_pack=file_pack,
+            history=history,
+            review_rebuttal=review_rebuttal,
+        )
+    except _SkillReviewPromptTooLarge as exc:
+        # Never let a provider become the component that discovers prompt
+        # overflow. A pending trust verdict is safer than an unbounded or
+        # partially reviewed executable payload.
+        return SkillReviewOutcome(
+            skill_name=skill.name,
+            status=STATUS_PENDING,
+            content_hash=content_hash,
+            error=(
+                f"{exc}. Reduce governance/payload size or split the skill; "
+                "the reviewer was not called."
+            ),
+        )
 
     models = list(get_review_models())
     try:
