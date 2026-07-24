@@ -106,3 +106,45 @@ def test_negative_contract(tmp_path, monkeypatch):
         headers=h1,
         json=envelope(ciphertext="not-base64"),
     ).status_code == 422
+    with main.database() as connection:
+        assert connection.execute(
+            "SELECT 1 FROM dpa_events WHERE reason_code = 'malformed_envelope'"
+        ).fetchone() is not None
+
+
+def test_rejected_reply_and_ack_are_written_to_dpa(tmp_path, monkeypatch):
+    monkeypatch.setenv("A2A_DATABASE_PATH", str(tmp_path / "gateway.db"))
+    monkeypatch.setenv("AGENT1_A2A_TOKEN", "token-agent1")
+    monkeypatch.setenv("AGENT2_A2A_TOKEN", "token-agent2")
+
+    import gateway.app.main as main
+
+    importlib.reload(main)
+    main.initialise_database()
+    client = TestClient(main.app)
+    h1 = {"Authorization": "Bearer token-agent1"}
+    h2 = {"Authorization": "Bearer token-agent2"}
+
+    original = client.post("/v1/messages", headers=h1, json=envelope()).json()
+    invalid_reply = envelope(
+        recipient_id="agent2",
+        message_type="response",
+        idempotency_key="idem-000000000002",
+        reply_to_message_id=original["message_id"],
+    )
+    assert client.post("/v1/messages", headers=h1, json=invalid_reply).status_code == 403
+
+    assert client.post("/v1/messages/missing-message/ack", headers=h1).status_code == 404
+    assert client.post(
+        f"/v1/messages/{original['message_id']}/ack", headers=h1
+    ).status_code == 403
+
+    with main.database() as connection:
+        rows = connection.execute(
+            "SELECT reason_code FROM dpa_events WHERE outcome = 'rejected' ORDER BY rowid"
+        ).fetchall()
+    assert {row["reason_code"] for row in rows} >= {
+        "invalid_reply_relationship",
+        "message_not_found",
+        "ack_recipient_mismatch",
+    }

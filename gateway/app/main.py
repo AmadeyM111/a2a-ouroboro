@@ -8,7 +8,9 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Literal
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 DATABASE_PATH = os.getenv("A2A_DATABASE_PATH", "/data/gateway.db")
@@ -137,6 +139,47 @@ def record_auth_rejection(reason_code: str) -> None:
     except sqlite3.Error:
         # Authentication must still fail closed if audit storage is unavailable.
         pass
+
+
+def _valid_auth_actor(request: Request) -> str | None:
+    """Resolve only already-valid bearer credentials for validation auditing."""
+    authorization = request.headers.get("authorization", "")
+    if not authorization.startswith("Bearer "):
+        return None
+    supplied = authorization.removeprefix("Bearer ").strip()
+    for token, agent_id in configured_tokens().items():
+        if secrets.compare_digest(supplied, token):
+            return agent_id
+    return None
+
+
+@app.exception_handler(RequestValidationError)
+async def request_validation_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    """Persist safe DPA metadata for malformed authenticated envelopes.
+
+    Invalid/missing credentials are already audited by ``authenticated_agent``;
+    skip them here to avoid two rejection records for one request.
+    """
+    actor_id = _valid_auth_actor(request)
+    if actor_id:
+        try:
+            with database() as connection:
+                add_dpa_event(
+                    connection,
+                    actor_id=actor_id,
+                    action="request_validation",
+                    target_id=request.url.path,
+                    outcome="rejected",
+                    reason_code="malformed_envelope",
+                    correlation_id=str(uuid.uuid4()),
+                )
+        except sqlite3.Error:
+            # The API rejection remains fail-closed even when audit storage is
+            # temporarily unavailable; the error is intentionally not exposed.
+            pass
+    return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 
 class StrictModel(BaseModel):
@@ -364,6 +407,19 @@ def send_message(
                 and payload.message_type == "response"
             )
             if not valid_reply:
+                add_dpa_event(
+                    connection,
+                    actor_id=sender_id,
+                    action="message_send_requested",
+                    target_id=payload.recipient_id,
+                    outcome="rejected",
+                    reason_code="invalid_reply_relationship",
+                    correlation_id=correlation_id,
+                    message_id=original["message_id"],
+                    conversation_id=original["conversation_id"],
+                    ciphertext_sha256=ciphertext_hash,
+                )
+                connection.commit()
                 raise HTTPException(
                     status_code=403, detail="Invalid reply relationship"
                 )
@@ -493,8 +549,32 @@ def acknowledge(
     with database() as connection:
         row = get_message(connection, message_id)
         if not row:
+            add_dpa_event(
+                connection,
+                actor_id=recipient_id,
+                action="message_acknowledged",
+                target_id=message_id,
+                outcome="rejected",
+                reason_code="message_not_found",
+                correlation_id=correlation_id,
+                message_id=message_id,
+            )
+            connection.commit()
             raise HTTPException(status_code=404, detail="Message not found")
         if row["recipient_id"] != recipient_id:
+            add_dpa_event(
+                connection,
+                actor_id=recipient_id,
+                action="message_acknowledged",
+                target_id=row["sender_id"],
+                outcome="rejected",
+                reason_code="ack_recipient_mismatch",
+                correlation_id=correlation_id,
+                message_id=row["message_id"],
+                conversation_id=row["conversation_id"],
+                ciphertext_sha256=row["ciphertext_sha256"],
+            )
+            connection.commit()
             raise HTTPException(status_code=403, detail="Access denied")
         if row["status"] != "acknowledged":
             connection.execute(
