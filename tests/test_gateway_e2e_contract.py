@@ -148,3 +148,18 @@ def test_rejected_reply_and_ack_are_written_to_dpa(tmp_path, monkeypatch):
         "message_not_found",
         "ack_recipient_mismatch",
     }
+
+
+def test_gateway_rejects_duplicate_agent_tokens(monkeypatch):
+    monkeypatch.setenv("AGENT1_A2A_TOKEN", "same-token")
+    monkeypatch.setenv("AGENT2_A2A_TOKEN", "same-token")
+
+    import gateway.app.main as main
+
+    importlib.reload(main)
+    try:
+        main.validate_token_configuration()
+    except RuntimeError as exc:
+        assert "duplicate A2A bearer tokens" in str(exc)
+    else:
+        raise AssertionError("duplicate A2A tokens must fail validation")

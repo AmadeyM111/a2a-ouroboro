@@ -92,6 +92,7 @@ def initialise_database() -> None:
 
 @app.on_event("startup")
 def startup() -> None:
+    validate_token_configuration()
     initialise_database()
 
 
@@ -102,6 +103,30 @@ def configured_tokens() -> dict[str, str]:
         if token:
             result[token] = f"agent{number}"
     return result
+
+
+def validate_token_configuration() -> dict[str, str]:
+    """Fail startup instead of silently collapsing two agent identities."""
+    entries = [
+        (f"agent{number}", os.getenv(f"AGENT{number}_A2A_TOKEN", ""))
+        for number in range(1, 6)
+    ]
+    configured = [(agent_id, token) for agent_id, token in entries if token]
+    if not configured:
+        raise RuntimeError("at least one AGENTn_A2A_TOKEN must be configured")
+    seen: dict[str, str] = {}
+    duplicates: list[str] = []
+    for agent_id, token in configured:
+        previous = seen.get(token)
+        if previous:
+            duplicates.append(f"{previous}/{agent_id}")
+        seen[token] = agent_id
+    if duplicates:
+        raise RuntimeError(
+            "duplicate A2A bearer tokens for agent pairs: "
+            + ", ".join(duplicates)
+        )
+    return {token: agent_id for agent_id, token in configured}
 
 
 def authenticated_agent(

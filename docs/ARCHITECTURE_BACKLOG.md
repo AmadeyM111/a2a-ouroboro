@@ -75,4 +75,5 @@ Tasks are taken in order. Each task must have an implementation, focused regress
 - The existing `OUROBOROS_TRUST_NONLOCAL_BIND_WITHOUT_PASSWORD=1` is now the only explicit escape hatch and is documented as trusted-ingress/VPN/private-network-only.
 - Updated architecture documentation and regression tests.
 - Remaining scope: A2A TLS/mTLS, token rotation/revocation, rate limits and transport threat-model hardening.
+- Added A2A startup validation for missing-all and duplicate `AGENTn_A2A_TOKEN` configuration; duplicate credentials now fail before the gateway serves traffic.
 - Python compilation and `git diff --check` pass; runtime test import is blocked because Starlette is not installed in the current environment.
