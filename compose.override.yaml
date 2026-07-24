@@ -2,16 +2,16 @@ services:
   agent1:
     depends_on:
       gateway:
-        condition: service_started
+        condition: service_healthy
     environment:
       A2A_AGENT_ID: agent1
       A2A_GATEWAY_URL: http://gateway:8080
       A2A_GATEWAY_TOKEN: ${AGENT1_A2A_TOKEN}
-      A2A_KEY_ID: agent1-2026-07
+      A2A_KEY_ID: agent1-${A2A_KEY_SUFFIX:-2026-01}
       A2A_ED25519_PRIVATE_KEY_PATH: /run/secrets/a2a/ed25519-private.pem
       A2A_X25519_PRIVATE_KEY_PATH: /run/secrets/a2a/x25519-private.pem
       A2A_PUBLIC_REGISTRY_PATH: /run/secrets/a2a/public-keys.json
-      A2A_RECIPIENT_KEY_IDS_JSON: '{"agent2":"agent2-2026-07","agent3":"agent3-2026-07","agent4":"agent4-2026-07","agent5":"agent5-2026-07"}'
+      A2A_RECIPIENT_KEY_IDS_JSON: '{"agent2":"agent2-${A2A_KEY_SUFFIX:-2026-01}","agent3":"agent3-${A2A_KEY_SUFFIX:-2026-01}","agent4":"agent4-${A2A_KEY_SUFFIX:-2026-01}","agent5":"agent5-${A2A_KEY_SUFFIX:-2026-01}"}'
 
     volumes:
       - ./skills/a2a_gateway:/data/skills/a2a_gateway:ro
@@ -22,16 +22,16 @@ services:
   agent2:
     depends_on:
       gateway:
-        condition: service_started
+        condition: service_healthy
     environment:
       A2A_AGENT_ID: agent2
       A2A_GATEWAY_URL: http://gateway:8080
       A2A_GATEWAY_TOKEN: ${AGENT2_A2A_TOKEN}
-      A2A_KEY_ID: agent2-2026-07
+      A2A_KEY_ID: agent2-${A2A_KEY_SUFFIX:-2026-01}
       A2A_ED25519_PRIVATE_KEY_PATH: /run/secrets/a2a/ed25519-private.pem
       A2A_X25519_PRIVATE_KEY_PATH: /run/secrets/a2a/x25519-private.pem
       A2A_PUBLIC_REGISTRY_PATH: /run/secrets/a2a/public-keys.json
-      A2A_RECIPIENT_KEY_IDS_JSON: '{"agent1":"agent1-2026-07","agent3":"agent3-2026-07","agent4":"agent4-2026-07","agent5":"agent5-2026-07"}'
+      A2A_RECIPIENT_KEY_IDS_JSON: '{"agent1":"agent1-${A2A_KEY_SUFFIX:-2026-01}","agent3":"agent3-${A2A_KEY_SUFFIX:-2026-01}","agent4":"agent4-${A2A_KEY_SUFFIX:-2026-01}","agent5":"agent5-${A2A_KEY_SUFFIX:-2026-01}"}'
     
     volumes:
       - ./skills/a2a_gateway:/data/skills/a2a_gateway:ro
@@ -42,16 +42,16 @@ services:
   agent3:
     depends_on:
       gateway:
-        condition: service_started  
+        condition: service_healthy
     environment:
       A2A_AGENT_ID: agent3
       A2A_GATEWAY_URL: http://gateway:8080
       A2A_GATEWAY_TOKEN: ${AGENT3_A2A_TOKEN}
-      A2A_KEY_ID: agent3-2026-07
+      A2A_KEY_ID: agent3-${A2A_KEY_SUFFIX:-2026-01}
       A2A_ED25519_PRIVATE_KEY_PATH: /run/secrets/a2a/ed25519-private.pem
       A2A_X25519_PRIVATE_KEY_PATH: /run/secrets/a2a/x25519-private.pem
       A2A_PUBLIC_REGISTRY_PATH: /run/secrets/a2a/public-keys.json
-      A2A_RECIPIENT_KEY_IDS_JSON: '{"agent1":"agent1-2026-07","agent2":"agent2-2026-07","agent4":"agent4-2026-07","agent5":"agent5-2026-07"}'
+      A2A_RECIPIENT_KEY_IDS_JSON: '{"agent1":"agent1-${A2A_KEY_SUFFIX:-2026-01}","agent2":"agent2-${A2A_KEY_SUFFIX:-2026-01}","agent4":"agent4-${A2A_KEY_SUFFIX:-2026-01}","agent5":"agent5-${A2A_KEY_SUFFIX:-2026-01}"}'
   
     volumes:
       - ./skills/a2a_gateway:/data/skills/a2a_gateway:ro
@@ -62,16 +62,16 @@ services:
   agent4:
     depends_on:
       gateway:
-        condition: service_started
+        condition: service_healthy
     environment:
       A2A_AGENT_ID: agent4
       A2A_GATEWAY_URL: http://gateway:8080
       A2A_GATEWAY_TOKEN: ${AGENT4_A2A_TOKEN}
-      A2A_KEY_ID: agent4-2026-07
+      A2A_KEY_ID: agent4-${A2A_KEY_SUFFIX:-2026-01}
       A2A_ED25519_PRIVATE_KEY_PATH: /run/secrets/a2a/ed25519-private.pem
       A2A_X25519_PRIVATE_KEY_PATH: /run/secrets/a2a/x25519-private.pem
       A2A_PUBLIC_REGISTRY_PATH: /run/secrets/a2a/public-keys.json
-      A2A_RECIPIENT_KEY_IDS_JSON: '{"agent1":"agent1-2026-07","agent2":"agent2-2026-07","agent3":"agent3-2026-07","agent5":"agent5-2026-07"}'
+      A2A_RECIPIENT_KEY_IDS_JSON: '{"agent1":"agent1-${A2A_KEY_SUFFIX:-2026-01}","agent2":"agent2-${A2A_KEY_SUFFIX:-2026-01}","agent3":"agent3-${A2A_KEY_SUFFIX:-2026-01}","agent5":"agent5-${A2A_KEY_SUFFIX:-2026-01}"}'
   
     volumes:
       - ./skills/a2a_gateway:/data/skills/a2a_gateway:ro
@@ -82,16 +82,16 @@ services:
   agent5:
     depends_on:
       gateway:
-        condition: service_started
+        condition: service_healthy
     environment:
       A2A_AGENT_ID: agent5
       A2A_GATEWAY_URL: http://gateway:8080
       A2A_GATEWAY_TOKEN: ${AGENT5_A2A_TOKEN}
-      A2A_KEY_ID: agent5-2026-07
+      A2A_KEY_ID: agent5-${A2A_KEY_SUFFIX:-2026-01}
       A2A_ED25519_PRIVATE_KEY_PATH: /run/secrets/a2a/ed25519-private.pem
       A2A_X25519_PRIVATE_KEY_PATH: /run/secrets/a2a/x25519-private.pem
       A2A_PUBLIC_REGISTRY_PATH: /run/secrets/a2a/public-keys.json
-      A2A_RECIPIENT_KEY_IDS_JSON: '{"agent1":"agent1-2026-07","agent2":"agent2-2026-07","agent3":"agent3-2026-07","agent4":"agent4-2026-07"}'
+      A2A_RECIPIENT_KEY_IDS_JSON: '{"agent1":"agent1-${A2A_KEY_SUFFIX:-2026-01}","agent2":"agent2-${A2A_KEY_SUFFIX:-2026-01}","agent3":"agent3-${A2A_KEY_SUFFIX:-2026-01}","agent4":"agent4-${A2A_KEY_SUFFIX:-2026-01}"}'
     volumes:
       - ./skills/a2a_gateway:/data/skills/a2a_gateway:ro
       - ./secrets/a2a/agent5/ed25519-private.pem:/run/secrets/a2a/ed25519-private.pem:ro

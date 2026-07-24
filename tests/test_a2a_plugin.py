@@ -1,6 +1,7 @@
 import json
 
 from skills.a2a_gateway import plugin
+from ouroboros.extension_loader import extension_surface_name
 
 
 class _FakeAPI:
@@ -24,6 +25,11 @@ class _FakeAPI:
 
     def log(self, *_args, **_kwargs):
         pass
+
+
+class _NamespacedAPI(_FakeAPI):
+    def register_tool(self, name, handler, **kwargs):
+        self.tools[extension_surface_name("a2a_gateway", name)] = (handler, kwargs)
 
 
 class _FakeCrypto:
@@ -73,3 +79,18 @@ def test_plugin_ack_rejects_non_string_message_id(monkeypatch):
 
     result = json.loads(api.tools["ack"](message_id=42))
     assert result == {"error": "message_id is invalid", "ok": False}
+
+
+def test_plugin_runtime_names_are_canonical_and_include_ack(monkeypatch):
+    monkeypatch.setattr(plugin, "LocalCrypto", _FakeCrypto)
+    monkeypatch.setattr(plugin, "A2AClient", _FakeClient)
+    api = _NamespacedAPI()
+
+    plugin.register(api)
+
+    assert set(api.tools) == {
+        extension_surface_name("a2a_gateway", name)
+        for name in ("health", "send_message", "list_inbox", "ack", "reply")
+    }
+    ack_name = extension_surface_name("a2a_gateway", "ack")
+    assert api.tools[ack_name][1]["schema"]["required"] == ["message_id"]

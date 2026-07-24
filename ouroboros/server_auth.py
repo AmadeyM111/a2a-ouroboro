@@ -70,7 +70,8 @@ def get_network_auth_startup_warning(bind_host: str) -> str | None:
         return None
     return (
         "Server is binding to a non-loopback host without OUROBOROS_NETWORK_PASSWORD. "
-        "Access will stay open to the network until a password is configured."
+        "Startup will be refused unless a password or the trusted-ingress override "
+        f"{TRUST_NONLOCAL_BIND_KEY}=1 is configured."
     )
 
 

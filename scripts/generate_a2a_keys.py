@@ -13,7 +13,11 @@ from skills.a2a_gateway.crypto import generate_agent_key_material
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", required=True)
-    parser.add_argument("--key-suffix", default="2026-01")
+    parser.add_argument(
+        "--key-suffix",
+        default=os.environ.get("A2A_KEY_SUFFIX", "2026-01"),
+        help="key-id suffix; defaults to A2A_KEY_SUFFIX or 2026-01",
+    )
     args = parser.parse_args()
     root = Path(args.output)
     root.mkdir(mode=0o700, parents=True, exist_ok=True)

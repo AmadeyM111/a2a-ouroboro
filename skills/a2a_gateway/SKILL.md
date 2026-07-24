@@ -28,5 +28,18 @@ Tools:
 - `ack` — acknowledge processing;
 - `reply` — reply to the sender.
 
+Runtime names are namespaced by the host extension loader to prevent collisions.
+For this skill the canonical tool names are:
+
+- `ext_13_r_a2a_gateway_health`
+- `ext_13_r_a2a_gateway_send_message`
+- `ext_13_r_a2a_gateway_list_inbox`
+- `ext_13_r_a2a_gateway_ack`
+- `ext_13_r_a2a_gateway_reply`
+
+The short names above are the plugin-local names only. Agent/tool-registry
+surfaces must use the canonical names; `ack` is intentionally separate from
+`list_inbox` so the caller can durably process a decrypted message first.
+
 The sender identity is taken from trusted local settings and cannot be supplied
 by the model.

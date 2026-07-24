@@ -1,7 +1,7 @@
 # Ouroboros 6.40.0 — A2A E2E Gateway, slice 1
 
-This package updates only the external FastAPI Gateway. It does not modify
-Ouroboros core.
+The repository contains the Ouroboros runtime, the external FastAPI A2A
+Gateway, and the reviewed `a2a_gateway` extension used by agent containers.
 
 ## Apply on Fedora
 
@@ -78,15 +78,32 @@ Generate five key sets once, offline:
 ```bash
 cd /opt/ouroboro/a2a-ouroboro
 umask 077
+cp .env.example .env
+# Set real passwords/tokens in .env on the closed deployment host.
+set -a; . ./.env; set +a
+umask 077
 python scripts/generate_a2a_keys.py \
-  --output /opt/ouroboro/a2a-keys \
-  --key-suffix 2026-01
+  --output "$A2A_KEYS_DIR" \
+  --key-suffix "$A2A_KEY_SUFFIX"
 ```
 
 Do not commit `/opt/ouroboro/a2a-keys`. Mount `public-keys.json` read-only into
 all agents. Mount only `agentN/x25519-private.pem` and
 `agentN/ed25519-private.pem` into AgentN. Never mount private keys into the
 Gateway.
+
+The active `compose.yaml` now carries the A2A extension settings, key mounts,
+shared key suffix, and Gateway health dependency. It works both with the
+implicit override and with an explicit base-file invocation:
+
+```bash
+docker compose --env-file .env -f compose.yaml config --services
+docker compose --env-file .env -f compose.yaml up -d --build
+```
+
+Run the owner-controlled skill lifecycle (review, enable, reconcile) on each
+agent before sending messages. The deployment deliberately does not bypass the
+skill review gate automatically.
 
 Verify:
 
