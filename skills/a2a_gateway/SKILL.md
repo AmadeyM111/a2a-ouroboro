@@ -3,6 +3,7 @@ name: a2a_gateway
 description: Controlled agent-to-agent messaging through an authenticated gateway.
 version: 0.1.0
 type: extension
+runtime: python3
 entry: plugin.py
 permissions: [net, tool, read_settings]
 env_from_settings:

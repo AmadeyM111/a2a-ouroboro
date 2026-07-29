@@ -298,6 +298,6 @@ class A2AClient:
             "delivered_at",
             "acknowledged_at",
         }
-        if not isinstance(value, dict) or set(value) != required:
+        if not isinstance(value, dict) or not required.issubset(value):
             raise GatewayError("A2A Gateway message schema is invalid")
         return value

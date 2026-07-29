@@ -85,6 +85,18 @@ def test_send_encrypts_and_does_not_send_plaintext(tmp_path):
     assert len(opener.requests) == 1
 
 
+def test_envelope_allows_forward_compatible_gateway_metadata(tmp_path):
+    opener = ScriptedOpener(
+        lambda request, _:
+        Response(gateway_message(json.loads(request.data)) | {"gateway_region": "local"})
+    )
+    client, _ = make_client(tmp_path, opener)
+
+    result = client.send_message(recipient_id="agent2", content="test")
+
+    assert result["message_id"] == "message-1"
+
+
 def test_retry_reuses_identical_encrypted_bytes(tmp_path, monkeypatch):
     monkeypatch.setattr("skills.a2a_gateway.client.time.sleep", lambda _: None)
     bodies = []
