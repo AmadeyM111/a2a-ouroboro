@@ -474,6 +474,10 @@ and do not return `PASS` for an item that also has a `FAIL` — the concrete
 
 ### Checklist items
 
+For extension skills, `PluginAPI.register_tool()` and
+`PluginAPI.register_ws_handler()` receive plugin-local short names; the host
+applies the provider-safe extension namespace automatically.
+
 | # | item | what to check | severity when FAIL |
 |---|------|---------------|--------------------|
 | 1 | manifest_schema | Does the manifest parse cleanly? Does `type` match the actual payload (`instruction` = no scripts/entry; `script` = at least one entry in `scripts`; `extension` = non-empty `entry`)? Is `runtime` one of `python`/`python3`/`node`/`bash`/`deno`/`ruby`/`go` for `type: script` (empty `""` is allowed ONLY for `type: instruction` since instruction skills never execute; extension entries are Python `plugin.py` modules)? Is `timeout_sec` > 0? | critical |

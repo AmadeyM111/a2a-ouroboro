@@ -110,10 +110,13 @@ class PluginAPI(Protocol):
         schema: Dict[str, Any],
         timeout_sec: int = 60,
     ) -> None:
-        """Register a namespaced tool.
+        """Register a namespaced tool from a local short name.
 
-        ``name`` is alphanumeric/underscore and <=24 chars. Handlers may be sync
-        or async; async handlers run on a helper-thread event loop with timeout.
+        ``name`` is the plugin-local alphanumeric/underscore name (<=24 chars).
+        The host derives the provider-safe ``ext_<len>_<token>_<name>`` surface;
+        extension code must not pass that canonical name itself. Handlers may be
+        sync or async; async handlers run on a helper-thread event loop with
+        timeout.
         """
         ...
 

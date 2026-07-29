@@ -23,10 +23,14 @@ Provides authenticated communication between independent Ouroboros agents.
 Tools:
 
 - `health` — check Gateway availability;
-- `send` — send a message to another agent;
-- `inbox` — receive messages for the local agent;
+- `send_message` — send a message to another agent;
+- `list_inbox` — receive messages for the local agent;
 - `ack` — acknowledge processing;
 - `reply` — reply to the sender.
+
+The plugin registers these short names intentionally. `PluginAPI.register_tool()`
+applies the host namespace automatically; the plugin must not pass canonical
+`ext_13_r_a2a_gateway_*` names or they would be namespaced twice.
 
 Runtime names are namespaced by the host extension loader to prevent collisions.
 For this skill the canonical tool names are:
