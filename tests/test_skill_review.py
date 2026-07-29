@@ -105,6 +105,42 @@ def test_skill_review_prompt_has_deterministic_hard_budget(tmp_path):
         )
 
 
+def test_skill_review_uses_bounded_output_and_no_duplicate_full_bible(tmp_path, monkeypatch):
+    import asyncio
+    from ouroboros.tools import review as review_module
+    from ouroboros.tools.registry import ToolContext
+
+    captured = {}
+
+    async def fake_query(_llm, model, messages, _semaphore, _ctx, **kwargs):
+        captured["messages"] = messages
+        captured["max_tokens"] = kwargs["max_tokens"]
+        return model, {"choices": [{"message": {"content": "[]"}}], "usage": {}}, None
+
+    monkeypatch.setattr(review_module, "_query_model", fake_query)
+    monkeypatch.setattr(review_module, "LLMClient", lambda: object())
+    monkeypatch.setattr(
+        review_module,
+        "emit_review_usage",
+        lambda *args, **kwargs: None,
+    )
+
+    result = asyncio.run(
+        review_module._multi_model_review_async(
+            "review target",
+            "compact review instructions",
+            ["openai-compatible::gpt-oss-120b"],
+            ToolContext(repo_dir=tmp_path, drive_root=tmp_path),
+            include_full_bible=False,
+            max_tokens=4096,
+        )
+    )
+
+    assert result["results"][0]["text"] == "[]"
+    assert "BIBLE.md (Full Text)" not in captured["messages"][0]["content"]
+    assert captured["max_tokens"] == 4096
+
+
 def test_skill_advisory_failure_is_fail_open_but_visible(tmp_path, monkeypatch):
     import ouroboros.skill_review as skill_review
     from ouroboros.tools import claude_advisory_review as advisory

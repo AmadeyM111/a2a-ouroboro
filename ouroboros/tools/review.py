@@ -188,8 +188,15 @@ def _handle_task_acceptance_review(
     return f"{capsule}\n\n<full_review>\n{payload}\n</full_review>" if capsule else payload
 
 
-def _handle_multi_model_review(ctx: ToolContext, content: str = "",
-                                prompt: str = "", models: list = None) -> str:
+def _handle_multi_model_review(
+    ctx: ToolContext,
+    content: str = "",
+    prompt: str = "",
+    models: list = None,
+    *,
+    include_full_bible: bool = True,
+    max_tokens: int = 65536,
+) -> str:
     if models is None:
         models = []
     try:
@@ -199,10 +206,26 @@ def _handle_multi_model_review(ctx: ToolContext, content: str = "",
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
                 result = pool.submit(
                     asyncio.run,
-                    _multi_model_review_async(content, prompt, models, ctx),
+                    _multi_model_review_async(
+                        content,
+                        prompt,
+                        models,
+                        ctx,
+                        include_full_bible=include_full_bible,
+                        max_tokens=max_tokens,
+                    ),
                 ).result()
         except RuntimeError:
-            result = asyncio.run(_multi_model_review_async(content, prompt, models, ctx))
+            result = asyncio.run(
+                _multi_model_review_async(
+                    content,
+                    prompt,
+                    models,
+                    ctx,
+                    include_full_bible=include_full_bible,
+                    max_tokens=max_tokens,
+                )
+            )
         return json.dumps(result, ensure_ascii=False)
     except Exception as e:
         log.error("Multi-model review failed: %s", e, exc_info=True)
@@ -252,6 +275,7 @@ async def _query_model(
     semaphore,
     ctx: Optional[ToolContext] = None,
     slot_id: str = "multi_model_slot",
+    max_tokens: int = 65536,
 ):
     async with semaphore:
         timeout_sec = _review_model_timeout_sec()
@@ -264,7 +288,7 @@ async def _query_model(
                 messages=messages,
                 task_id=str(getattr(ctx, "task_id", "") or "multi_model_review") if ctx is not None else "multi_model_review",
                 call_type="multi_model_review",
-                max_tokens=65536,
+                max_tokens=max_tokens,
                 temperature=0.2,
                 no_proxy=True,
             )
@@ -273,7 +297,7 @@ async def _query_model(
                 model=model,
                 effort=_cfg.resolve_effort("review"),
                 timeout_sec=timeout_sec,
-                max_tokens=65536,
+                max_tokens=max_tokens,
                 temperature=0.2,
                 role_hint="multi-model review",
             )
@@ -317,7 +341,9 @@ async def _query_model(
 
 
 async def _multi_model_review_async(content: str, prompt: str,
-                                     models: list, ctx: ToolContext):
+                                     models: list, ctx: ToolContext, *,
+                                     include_full_bible: bool = True,
+                                     max_tokens: int = 65536):
     if not content:
         return {"error": "content is required"}
     if not prompt:
@@ -329,7 +355,10 @@ async def _multi_model_review_async(content: str, prompt: str,
     if len(models) > MAX_MODELS:
         return {"error": f"Too many models ({len(models)}). Maximum is {MAX_MODELS}."}
 
-    bible_text = load_governance_doc(_REPO_ROOT, "BIBLE.md", on_missing="explicit")
+    bible_text = (
+        load_governance_doc(_REPO_ROOT, "BIBLE.md", on_missing="explicit")
+        if include_full_bible else ""
+    )
     if bible_text:
         system_content = (
             _CONSTITUTIONAL_PREAMBLE
@@ -337,10 +366,12 @@ async def _multi_model_review_async(content: str, prompt: str,
             + "\n\n---\n\n## REVIEW INSTRUCTIONS\n\n" + prompt
         )
     else:
-        log.warning("Proceeding without BIBLE.md — constitutional compliance cannot be guaranteed")
+        if include_full_bible:
+            log.warning("Proceeding without BIBLE.md — constitutional compliance cannot be guaranteed")
         system_content = (
             _CONSTITUTIONAL_PREAMBLE
-            + "(BIBLE.md could not be loaded)\n\n## REVIEW INSTRUCTIONS\n\n" + prompt
+            + ("(BIBLE.md could not be loaded)\n\n" if include_full_bible else "")
+            + "## REVIEW INSTRUCTIONS\n\n" + prompt
         )
 
     messages = [
@@ -351,7 +382,15 @@ async def _multi_model_review_async(content: str, prompt: str,
     semaphore = asyncio.Semaphore(CONCURRENCY_LIMIT)
     llm_client = LLMClient()
     tasks = [
-        _query_model(llm_client, m, messages, semaphore, ctx, slot_id=f"multi_model_slot_{idx + 1}")
+        _query_model(
+            llm_client,
+            m,
+            messages,
+            semaphore,
+            ctx,
+            slot_id=f"multi_model_slot_{idx + 1}",
+            max_tokens=max_tokens,
+        )
         for idx, m in enumerate(models)
     ]
     results = await asyncio.gather(*tasks)

@@ -52,6 +52,9 @@ _MAX_SKILL_FILE_BYTES = 64 * 1024
 _MAX_SKILL_FILES = 40
 _MAX_RAW_RESULT_CHARS = 4000
 _SKILL_CHECKLIST_SECTION = "Skill Review Checklist"
+# Skill output is a compact JSON verdict. Reserve a bounded completion budget
+# so the input budget is measured against the actual 65,536-token context.
+_SKILL_REVIEW_MAX_OUTPUT_TOKENS = 4096
 # Skill review is an executable trust gate. Keep a deterministic safety margin
 # for code-dense tokenizers instead of relying on a provider-specific context
 # window probe. The full executable payload is never silently truncated: an
@@ -1501,6 +1504,11 @@ def review_skill(
             ),
             prompt=prompt,
             models=models,
+            # The skill prompt already carries the selected constitutional
+            # sections. The generic review substrate must not append the full
+            # BIBLE a second time after this prompt has passed its hard gate.
+            include_full_bible=False,
+            max_tokens=_SKILL_REVIEW_MAX_OUTPUT_TOKENS,
         )
     except Exception as exc:  # pragma: no cover — transport failure path
         log.warning("Skill review infrastructure failure for %s", skill.name, exc_info=True)
