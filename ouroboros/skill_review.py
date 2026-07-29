@@ -922,7 +922,18 @@ def _build_review_prompt(
             "contract below remains authoritative.\n\n"
             f"{advisory_notes.strip()}\n"
         )
-    prompt = f"""\
+    def _render(
+        *,
+        architecture: str,
+        development: str,
+        bible: str,
+        host_context: str,
+        advisory: str,
+        rebuttal: str,
+        history: str,
+    ) -> str:
+        """Render one prompt variant without truncating reviewed skill files."""
+        return f"""\
 You are performing a SKILL review, not a repo-commit review.
 
 This review vets a single external skill package that lives OUTSIDE the
@@ -953,7 +964,7 @@ as the binding description of what the skill is allowed to touch. In
 particular invariant 11 is the authoritative rule: skills must not write
 to the self-modifying repo, and reviewed execution is the primary gate.
 
-{architecture_text}
+{architecture}
 
 ## Governance context — docs/DEVELOPMENT.md
 
@@ -962,7 +973,7 @@ Use this as the engineering-standards baseline when judging
 code conforms to the module/function size expectations and the
 no-silent-truncation rule for cognitive artifacts.
 
-{development_text}
+{development}
 
 ## Governance context — BIBLE.md
 
@@ -974,16 +985,16 @@ Skill Review Checklist items permit the behaviour in isolation. Treat
 BIBLE.md as the tie-breaker when a skill looks checklist-compliant but
 contradicts the runtime's constitutional commitments.
 
-{bible_text}
+{bible}
 
-{skill_host_context}
+{host_context}
 
 ## Skill files (every runtime-reachable file in skill_dir, text-only)
 
 {file_pack}
-{advisory_section}
-{build_rebuttal_section(review_rebuttal)}
-{review_history_section}
+{advisory}
+{rebuttal}
+{history}
 
 ## Output contract
 
@@ -1014,10 +1025,56 @@ Rules:
 - For every FAIL, include a concrete proposed fix (file/symbol/change)
   so the skill author knows how to correct it.
 """
+
+    rebuttal_section = build_rebuttal_section(review_rebuttal)
+    prompt_variants = (
+        # Preserve the full selected context for the usual small skill.
+        (architecture_text, development_text, bible_text, skill_host_context,
+         advisory_section, rebuttal_section, review_history_section),
+        # Retry without untrusted/diagnostic history. These are useful evidence,
+        # but never required to establish a fresh trust verdict.
+        (architecture_text, development_text, bible_text, skill_host_context,
+         "", "", ""),
+        # The checklist, manifest, payload, and constitutional tie-breaker stay
+        # mandatory. Host contracts and development prose are supplementary;
+        # omit them as a unit when a large governance document would otherwise
+        # prevent a valid skill review from running.
+        (architecture_text, "(OMITTED: optional DEVELOPMENT.md context; prompt budget)",
+         bible_text, "(OMITTED: optional host contract context; prompt budget)",
+         "", "", ""),
+        # Keep only the compact constitutional minimum as the final safe retry.
+        ("(OMITTED: optional ARCHITECTURE.md context; prompt budget)",
+         "(OMITTED: optional DEVELOPMENT.md context; prompt budget)",
+         bible_text, "(OMITTED: optional host contract context; prompt budget)",
+         "", "", ""),
+    )
+    prompt = ""
+    for variant in prompt_variants:
+        prompt = _render(
+            architecture=variant[0],
+            development=variant[1],
+            bible=variant[2],
+            host_context=variant[3],
+            advisory=variant[4],
+            rebuttal=variant[5],
+            history=variant[6],
+        )
+        if len(prompt) <= _MAX_REVIEW_PROMPT_CHARS:
+            return prompt
     if len(prompt) > _MAX_REVIEW_PROMPT_CHARS:
+        final_variant = prompt_variants[-1]
+        component_sizes = (
+            f"checklist={len(checklist_section)}, "
+            f"architecture={len(final_variant[0])}, "
+            f"development={len(final_variant[1])}, "
+            f"bible={len(final_variant[2])}, "
+            f"host_context={len(final_variant[3])}, "
+            f"skill_files={len(file_pack)}"
+        )
         raise _SkillReviewPromptTooLarge(
-            f"skill review prompt is {len(prompt)} chars; "
-            f"hard limit is {_MAX_REVIEW_PROMPT_CHARS} chars"
+            f"skill review prompt is {len(prompt)} chars after compacting "
+            f"governance context; hard limit is {_MAX_REVIEW_PROMPT_CHARS} chars; "
+            f"component sizes: {component_sizes}"
         )
     return prompt
 

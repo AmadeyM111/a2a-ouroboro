@@ -105,6 +105,35 @@ def test_skill_review_prompt_has_deterministic_hard_budget(tmp_path):
         )
 
 
+def test_skill_review_prompt_compacts_optional_governance_context(tmp_path, monkeypatch):
+    import ouroboros.skill_review as skill_review
+
+    monkeypatch.setattr(
+        skill_review,
+        "_compact_governance",
+        lambda _root, relpath: f"{relpath}\n" + ("G" * 40_000),
+    )
+    monkeypatch.setattr(
+        skill_review,
+        "_compact_host_context",
+        lambda _root: "HOST_CONTEXT\n" + ("H" * 40_000),
+    )
+
+    prompt = skill_review._build_review_prompt(
+        "a2a_gateway",
+        tmp_path / "a2a_gateway",
+        '{"type":"extension"}',
+        "hash",
+        "plugin.py\nprint('ok')",
+    )
+
+    assert len(prompt) <= skill_review._MAX_REVIEW_PROMPT_CHARS
+    assert "plugin.py" in prompt
+    assert "BIBLE.md" in prompt
+    assert "OMITTED: optional DEVELOPMENT.md context; prompt budget" in prompt
+    assert "OMITTED: optional host contract context; prompt budget" in prompt
+
+
 def test_skill_review_uses_bounded_output_and_no_duplicate_full_bible(tmp_path, monkeypatch):
     import asyncio
     from ouroboros.tools import review as review_module
