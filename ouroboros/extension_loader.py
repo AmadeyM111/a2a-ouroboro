@@ -1023,6 +1023,11 @@ class PluginAPIImpl:
                 settings_key = canonical if canonical in protected_upper else key
                 if settings_key in settings:
                     out[settings_key] = settings[settings_key]
+                elif settings_key in os.environ:
+                    # Compose/deployment configuration commonly supplies extension
+                    # settings through the environment.  The manifest allowlist
+                    # above is the security boundary; do not expose arbitrary env.
+                    out[settings_key] = os.environ[settings_key]
             return out
 
     def get_state_dir(self) -> str:
