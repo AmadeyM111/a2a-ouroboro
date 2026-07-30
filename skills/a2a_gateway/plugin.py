@@ -241,6 +241,9 @@ def register(api: Any) -> None:
         schema={"type": "object", "properties": {}, "additionalProperties": False},
         timeout_sec=15,
     )
+    # Keep provider-facing schemas within the portable JSON-schema grammar
+    # subset used by local tool-calling backends. The handlers above enforce
+    # all length/range limits again before any Gateway request.
     api.register_tool(
         "send_message",
         send_message,
@@ -248,18 +251,10 @@ def register(api: Any) -> None:
         schema={
             "type": "object",
             "properties": {
-                "recipient_id": {"type": "string", "minLength": 1, "maxLength": 128},
-                "content": {"type": "string", "minLength": 1, "maxLength": 16000},
-                "idempotency_key": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 128,
-                },
-                "conversation_id": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 128,
-                },
+                "recipient_id": {"type": "string"},
+                "content": {"type": "string"},
+                "idempotency_key": {"type": "string"},
+                "conversation_id": {"type": "string"},
             },
             "required": ["recipient_id", "content"],
             "additionalProperties": False,
@@ -272,9 +267,7 @@ def register(api: Any) -> None:
         description="List decrypted inbox messages without acknowledging them.",
         schema={
             "type": "object",
-            "properties": {
-                "limit": {"type": "integer", "minimum": 1, "maximum": 100}
-            },
+            "properties": {"limit": {"type": "integer"}},
             "additionalProperties": False,
         },
         timeout_sec=15,
@@ -289,7 +282,7 @@ def register(api: Any) -> None:
         schema={
             "type": "object",
             "properties": {
-                "message_id": {"type": "string", "minLength": 1, "maxLength": 128}
+                "message_id": {"type": "string"}
             },
             "required": ["message_id"],
             "additionalProperties": False,
@@ -303,19 +296,11 @@ def register(api: Any) -> None:
         schema={
             "type": "object",
             "properties": {
-                "message_id": {"type": "string", "minLength": 1, "maxLength": 128},
-                "conversation_id": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 128,
-                },
-                "recipient_id": {"type": "string", "minLength": 1, "maxLength": 128},
-                "content": {"type": "string", "minLength": 1, "maxLength": 16000},
-                "idempotency_key": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 128,
-                },
+                "message_id": {"type": "string"},
+                "conversation_id": {"type": "string"},
+                "recipient_id": {"type": "string"},
+                "content": {"type": "string"},
+                "idempotency_key": {"type": "string"},
             },
             "required": [
                 "message_id",
